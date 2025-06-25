@@ -1,0 +1,225 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<stdbool.h>
+#define n 25
+#define battery 1104984
+int via[n][n];
+bool original[n][n];
+float euclidean_distance(float x1,float x2,float y1,float y2)
+{
+return sqrt(((x2-x1)*(x2-x1))+((y2-y1)*(y2-y1)));
+}
+void bfs(float graph[n][n],int energyh[n],int start,float th[n],int v,float x[n],float y[n])
+{
+float residue=battery;
+float cost=0.0;
+int visited[n]={0};
+int current=start;
+int prev=-1;
+float time=0.0;
+while(visited[current]==0)
+{
+visited[current]=1;
+if(prev!=-1 && via[prev][current]!=-1)
+{
+int mid=via[prev][current];
+float dis1=euclidean_distance(x[prev],x[mid],y[prev],y[mid]);
+float t1=(dis1*200.0)/v;
+float dis2=euclidean_distance(x[mid],x[current],y[mid],y[current]);
+float t2=(dis2*200.0)/v;
+time+=t1+t2;
+printf("Hops to:%d(via Node %d)\n",current,via[prev][current]);
+}
+else if(prev!=-1)
+{
+float dist=euclidean_distance(x[prev],x[current],y[prev],y[current]);
+time=time+((dist*200.0)/v);
+printf("Hops to:%d\n",current);
+}
+else
+{
+printf("Starts at:%d\n",current);
+}
+time=time+th[current];
+float minweight=99999.0;
+int next=-1;
+for(int i=0;i<n;i++)
+{
+if(visited[i]==0 && graph[current][i]>0)
+{
+cost=graph[current][i]+energyh[i]+energyh[current];
+if(cost<minweight)
+{
+minweight=cost;
+next=i;
+}
+}
+}
+if(next==-1)
+break;
+if(residue<minweight)
+{
+printf("Too low battery\n");
+break;
+}
+residue=residue-minweight;
+prev=current;
+current=next;
+}
+if(via[current][start]!=-1)
+{
+int mid=via[prev][current];
+float dis1=euclidean_distance(x[start],x[mid],y[start],y[mid]);
+float t1=(dis1*200.0)/v;
+float dis2=euclidean_distance(x[mid],x[current],y[mid],y[current]);
+float t2=(dis2*200.0)/v;
+time+=t1+t2;
+residue=residue-graph[current][start];
+printf("Returns from %d to %d via %d",start,current,mid);
+}
+else
+{
+float dist=euclidean_distance(x[start],x[current],y[start],y[current]);
+time=time+((dist*200.0)/v);
+printf("Returns to %d from %d\n",start,current);
+residue=residue-graph[current][start];
+}
+printf("Total time required: %.2f s\n",time);
+printf("Battery used %.2f J \n",(battery-residue));
+residue=residue-graph[current][start];
+}
+
+void edge(float x1,float y1, float x2, float y2, int i,int j, float nx, float ny,float graph[n][n])
+{
+int xmin=floor(nx);
+int xmax=ceil(nx);
+int ymin=floor(ny);
+int ymax=ceil(ny);
+float dx=(x2-x1)/100;
+float dy=(y2-y1)/100;
+for(int k=0;k<=100;k++)
+{
+float px=x1+k*dx;
+float py=y1+k*dy;
+if(px>xmin && px<xmax && py>ymin && py<ymax)
+{
+graph[i][j]=0;
+graph[j][i]=0;
+printf("Edge between Node %d (%.2f,%.2f) and Node %d (%.2f,%.2f) is removed due to obstacle at %.2f,%.2f \n",i,x1,y1,j,x2,y2,nx,ny);
+return;
+}
+}
+}
+void path(float graph[n][n],float x[n],float y[n],int v,int propf)
+{
+for(int i=0;i<n;i++)
+{
+for(int j=0;j<n;j++)
+{
+if(graph[i][j]==0 && i!=j)
+{
+float least_d=1e9;
+int best_mid=-1;
+for(int k=0;k<n;k++)
+{
+if(graph[i][k]>0 && graph[j][k]>0 && original[i][k] && original[k][j])
+{
+float d1=euclidean_distance(x[i],x[k],y[i],y[k]);
+float d2=euclidean_distance(x[j],x[k],y[j],y[k]);
+float d=200*(d1+d2)/v*propf;
+if(d<least_d)
+{
+least_d=d;
+best_mid=k;
+}
+}
+}
+if(best_mid!=-1)
+{
+graph[i][j]=least_d;
+graph[j][i]=least_d;
+via[i][j]=best_mid;
+via[j][i]=best_mid;
+}
+}
+}
+}
+}
+int main()
+{
+int propf=539;
+int proph=423;
+float th[n]={18,15,8,7,9,19,21,15,13,16,14,20,24,25,26,22,25,28,30,30,20,16,17,30,30};
+float ht[n]={18,13,3,5,27,28,23,12,13,12,13,12,19,19,16,8,26,18,15,48,14,13,15,16,21};
+int energyh[n];
+for(int i=0;i<n;i++)
+{
+energyh[i]=proph*th[i];
+}
+float x[n]={0.5,0.5,0.5,0.5,0.5,1.5,1.5,1.5,1.5,1.5,2.5,2.5,2.5,2.5,2.5,3.5,3.5,3.5,3.5,3.5,4.5,4.5,4.5,4.5,4.5};
+float y[n]={0.5,1.5,2.5,3.5,4.5,0.5,1.5,2.5,3.5,4.5,0.5,1.5,2.5,3.5,4.5,0.5,1.5,2.5,3.5,4.5,0.5,1.5,2.5,3.5,4.5};
+int v=20;
+float graph[n][n];
+for(int i=0;i<n;i++)
+{
+for(int j=0;j<n;j++)
+{
+if(i==j)
+{
+graph[i][j]=0;
+}
+else
+{
+float dist=euclidean_distance(x[i],x[j],y[i],y[j]);
+graph[i][j]=200*dist/v*propf;
+via[i][j]=-1;
+}
+}
+}
+int height=25;
+for(int k=0;k<n;k++)
+{
+if(ht[k]>height)
+{
+for(int i=0;i<n;i++)
+{
+for(int j=i+1;j<n;j++)
+{
+if(graph[j][i]!=0)
+{
+energyh[k]=0;
+edge(x[i],y[i],x[j],y[j],i,j,x[k],y[k],graph);
+}
+}
+}
+printf("Node %d (%.2f,%.2f) has an obstacle of height %.2f\n",k,x[k],y[k],ht[k]);
+}
+}
+for(int i=0;i<n;i++)
+{
+for(int j=0;j<n;j++)
+{
+original[i][j]=(graph[i][j]!=0);
+}
+}
+path(graph,x,y,v,propf);
+for(int i=0;i<n;i++)
+{
+printf("Node %d has weight %d\n",i,energyh[i]);
+}
+for(int i=0;i<n;i++)
+{
+for(int j=i;j<n;j++)
+{
+if(graph[i][j]!=0)
+{
+if(via[i][j]!=-1)
+printf("Weight of edge between Node %d and Node %d is %.2f (via Node %d)\n",i,j,graph[i][j],via[i][j]);
+else
+printf("Weight of edge between Node %d and Node %d is %.2f \n",i,j,graph[i][j]);
+}
+}
+}
+bfs(graph,energyh,0,th,v,x,y);
+}
